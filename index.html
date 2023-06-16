@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<title>John Lee Test</title>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+	<link type="text/css" rel="stylesheet" href="main.css">
+	<style>
+		body {
+			background-color: #bfe3dd;
+			color: #000;
+		}
+
+		a {
+			color: #2983ff;
+		}
+	</style>
+</head>
+
+<body>
+
+	<div id="container"></div>
+
+	<!-- Import maps polyfill -->
+	<!-- Remove this when import maps will be widely supported -->
+	<!-- <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script> -->
+
+	<script type="importmap">
+			{
+				"imports": {
+					"three": "./build/three.module.js",
+					"three/addons/": "./jsm/"
+				}
+			}
+		</script>
+
+	<script type="module">
+
+		import * as THREE from 'three';
+
+		import Stats from 'three/addons/libs/stats.module.js';
+
+		import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+		import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+		import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+		import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+
+		let mixer;
+
+		const clock = new THREE.Clock();
+		const container = document.getElementById('container');
+
+		const stats = new Stats();
+
+		const renderer = new THREE.WebGLRenderer({ antialias: true });
+		renderer.setPixelRatio(window.devicePixelRatio);
+		renderer.setSize(window.innerWidth, window.innerHeight);
+		container.appendChild(renderer.domElement);
+
+		const pmremGenerator = new THREE.PMREMGenerator(renderer);
+
+		const scene = new THREE.Scene();
+		scene.background = new THREE.Color(0xbfe3dd);
+		scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
+
+		const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 1, 100);
+		camera.position.set(5, 2, 4);
+
+		const controls = new OrbitControls(camera, renderer.domElement);
+
+		controls.maxPolarAngle = Math.PI / 2;
+		controls.maxAzimuthAngle = Math.PI / 2;
+		controls.target.set(-3, 0, 0);
+		controls.update();
+		controls.enablePan = true;
+		controls.enableDamping = true;
+
+		const dracoLoader = new DRACOLoader();
+		dracoLoader.setDecoderPath('jsm/libs/draco/gltf/');
+
+		const loader = new GLTFLoader();
+		loader.setDRACOLoader(dracoLoader);
+		let model;
+		loader.load('models/gltf/test.glb', function (gltf) {
+
+			model = gltf.scene;
+			console.log('gltf', gltf.scene.children);
+			gltf.scene.children.map((child, index) => {
+				console.log(child.name, ' ', index);
+			})
+			model.position.set(1, -1, 0);
+			model.scale.set(0.2, 0.2, 0.2);
+			scene.add(model);
+
+			mixer = new THREE.AnimationMixer(model);
+			// mixer.clipAction( gltf.animations[ 0 ] ).play();
+
+			animate();
+
+		}, undefined, function (e) {
+
+			console.error(e);
+
+		});
+
+
+		window.onresize = function () {
+
+			camera.aspect = window.innerWidth / window.innerHeight;
+			camera.updateProjectionMatrix();
+
+			renderer.setSize(window.innerWidth, window.innerHeight);
+
+		};
+
+		let startMove = false;
+		let intersect = null;
+		let car = null;
+		let startCar = false;
+		document.addEventListener('click', function (evt) {
+			intersect = ray_tracing(evt, [model.children[275], model.children[276], model.children[277], model.children[278]]);
+			if (intersect.length > 0) {
+				console.log('here', intersect[0].point);
+				startMove = true;
+				// camera.position.set(intersect[0].point.x + 1, intersect[0].point.y + 1, intersect[0].point.z + 1);
+			}
+			car = ray_tracing(evt, [model.children[125]]);
+			if (car.length > 0) {
+				console.log('here', car[0].point);
+				startCar = true;
+				// camera.position.set(intersect[0].point.x + 1, intersect[0].point.y + 1, intersect[0].point.z + 1);
+			}
+		});
+
+		function ray_tracing(e, objects) {
+			var uv = new THREE.Vector3();
+			if (e.offsetX) {  //chrome,ie,safari
+				uv.x = e.offsetX;
+				uv.y = e.offsetY;
+			} else { //firefox
+				uv.x = e.layerX;
+				uv.y = e.layerY;
+			}
+			uv.x = 2 * (uv.x / window.innerWidth) - 1;
+			uv.y = 1 - 2 * (uv.y / window.innerHeight);
+
+			var cam = camera.clone();
+			var raycaster = new THREE.Raycaster();
+			raycaster.setFromCamera(uv, cam);
+			return raycaster.intersectObjects(objects);
+		}
+
+
+		function animate() {
+			// console.log('camera po', camera.position);
+			// console.log('camera rotation', camera.rotation);
+			if (intersect != null) {
+				// camera.rotation.set(-1.9308, 1.5182, 1.9385)
+				if (startMove == true && Math.abs(camera.position.x - 3) > 0.05) {
+					camera.position.x > (-3) ? camera.position.x -= 0.03 : camera.position.x += 0.03;
+					console.log('x', camera.position.x);
+				}
+				if (startMove == true && camera.position.y > 0.03) {
+					camera.position.y -= 0.03;
+					console.log('y', camera.position.y);
+				}
+
+				else if (startMove == true && Math.abs(camera.position.z - (-1.97)) > 0.05) {
+					camera.position.z > (-1.97) ? camera.position.z -= 0.03 : camera.position.z += 0.03
+					console.log('deltaZ', camera.position.z);
+				}
+
+				else if (startMove == true && Math.abs(camera.position.x - 3) <= 0.04 &&
+					camera.position.y < 0.03 &&
+					Math.abs(camera.position.z - (-1.97)) <= 0.04) {
+					console.log('finish');
+					startMove = false;
+					intersect = null;
+				}
+			}
+
+			if (car != null) {
+				// camera.rotation.set(-1.9308, 1.5182, 1.9385)
+				if (startCar == true && Math.abs(camera.position.x - 3) > 0.05) {
+					camera.position.x > (-3) ? camera.position.x -= 0.03 : camera.position.x += 0.03;
+					console.log('x', camera.position.x);
+				}
+				if (startCar == true && camera.position.y > 0.01) {
+					camera.position.y -= 0.03;
+					console.log('y', camera.position.y);
+				}
+
+				else if (startCar == true && Math.abs(camera.position.z - (-1.89)) > 0.05) {
+					camera.position.z > (-1.89) ? camera.position.z -= 0.03 : camera.position.z += 0.03
+					console.log('deltaZ', camera.position.z);
+				}
+
+				else if (startCar == true && Math.abs(camera.position.x - 3) <= 0.05 &&
+					camera.position.y < 0.01 &&
+					Math.abs(camera.position.z - (-1.89)) <= 0.04) {
+					console.log('finish');
+					startCar = false;
+					car = null;
+				}
+			}
+
+
+
+			requestAnimationFrame(animate);
+
+			const delta = clock.getDelta();
+
+			mixer.update(delta);
+
+			controls.update();
+
+			stats.update();
+
+			renderer.render(scene, camera);
+
+		}
+
+
+	</script>
+
+</body>
+
+</html>

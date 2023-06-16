@@ -1,0 +1,14 @@
+node_modules
+*.log*
+.nuxt
+.nitro
+.cache
+.output
+.env
+dist
+/models/gltf/test.glb
+faheem-test.rar
+eyal.js
+
+# Local Netlify folder
+.netlify
